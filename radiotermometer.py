@@ -1,12 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def heat_distribution(depth, temp_surface, thermal_conductivity, metabolic_heat, density, specific_heat):
+# Redefine the adjusted heat distribution function
+def heat_distribution(depth, temp_surface, temp_core, depth_core, thermal_conductivity, metabolic_heat, density, specific_heat):
     """
     Calculate the temperature distribution in tissue layers based on depth.
 
     depth: np.array - Array of depths (m).
     temp_surface: float - Surface temperature (K).
+    temp_core: float - Core temperature (K) at depth_core.
+    depth_core: float - Depth at which core temperature is reached (m).
     thermal_conductivity: float - Thermal conductivity (W/m*K).
     metabolic_heat: float - Metabolic heat generation (W/m^3).
     density: float - Tissue density (kg/m^3).
@@ -15,8 +18,8 @@ def heat_distribution(depth, temp_surface, thermal_conductivity, metabolic_heat,
     Returns:
     Temperature distribution as a function of depth.
     """
-    alpha = thermal_conductivity / (density * specific_heat)
-    temp_distribution = temp_surface - (metabolic_heat / (2 * thermal_conductivity)) * depth ** 2
+    temp_distribution = temp_surface + (temp_core - temp_surface) * (depth / depth_core)**2
+    temp_distribution[depth > depth_core] = temp_core
     return temp_distribution
 
 def rayleigh_jeans_radiation(wavelength, temperature):
@@ -61,7 +64,9 @@ def total_signal(depth, temp_distribution, signal_intensity, transfer_function):
 
 # Parameters
 depth = np.linspace(0, 0.05, 100)  # Depth in meters (0 to 5 cm)
-temp_surface = 310.15  # Surface temperature in Kelvin (37°C)
+temp_surface = 36.5 + 273.15  # Surface temperature in Kelvin
+temp_core = 37.1 + 273.15  # Core temperature in Kelvin
+depth_core = 0.05  # Depth where core temperature is reached (5 cm)
 thermal_conductivity = 0.5  # W/m*K
 metabolic_heat = 5000  # W/m^3
 density = 1000  # kg/m^3
@@ -76,7 +81,7 @@ wavelength = 3e8 / frequency  # Wavelength in meters
 
 # Calculate temperature distribution
 temp_distribution = heat_distribution(
-    depth, temp_surface, thermal_conductivity, metabolic_heat, density, specific_heat
+    depth, temp_surface, temp_core, depth_core, thermal_conductivity, metabolic_heat, density, specific_heat
 )
 
 # Calculate Rayleigh-Jeans radiation at each depth
@@ -89,14 +94,14 @@ signal_intensity = attenuation_signal(depth, radiation_intensity, absorption_coe
 total_received_signal = total_signal(depth, temp_distribution, signal_intensity, transfer_function)
 
 # Output results
-print(f"Total received signal: {total_received_signal:.4f}")
+result = f"Total received signal: {total_received_signal:.4f}"
 
 # Visualization
 plt.figure(figsize=(10, 8))
 plt.subplot(3, 1, 1)
-plt.plot(depth * 100, temp_distribution, label="Temperature Distribution (K)")
+plt.plot(depth * 100, temp_distribution - 273.15, label="Temperature Distribution (°C)")
 plt.xlabel("Depth (cm)")
-plt.ylabel("Temperature (K)")
+plt.ylabel("Temperature (°C)")
 plt.legend()
 plt.grid()
 
@@ -116,3 +121,5 @@ plt.grid()
 
 plt.tight_layout()
 plt.show()
+
+result
