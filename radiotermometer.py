@@ -1,0 +1,118 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def heat_distribution(depth, temp_surface, thermal_conductivity, metabolic_heat, density, specific_heat):
+    """
+    Calculate the temperature distribution in tissue layers based on depth.
+
+    depth: np.array - Array of depths (m).
+    temp_surface: float - Surface temperature (K).
+    thermal_conductivity: float - Thermal conductivity (W/m*K).
+    metabolic_heat: float - Metabolic heat generation (W/m^3).
+    density: float - Tissue density (kg/m^3).
+    specific_heat: float - Specific heat capacity (J/kg*K).
+
+    Returns:
+    Temperature distribution as a function of depth.
+    """
+    alpha = thermal_conductivity / (density * specific_heat)
+    temp_distribution = temp_surface - (metabolic_heat / (2 * thermal_conductivity)) * depth ** 2
+    return temp_distribution
+
+def rayleigh_jeans_radiation(wavelength, temperature):
+    """
+    Calculate the spectral radiance using the Rayleigh-Jeans law.
+
+    wavelength: float - Wavelength (m).
+    temperature: float - Temperature (K).
+
+    Returns:
+    Spectral radiance (W/m^3).
+    """
+    k_B = 1.381e-23  # Boltzmann constant (J/K)
+    return (2 * k_B * temperature) / (wavelength**4)
+
+def attenuation_signal(depth, intensity_initial, absorption_coefficient):
+    """
+    Calculate signal attenuation based on the depth of tissue.
+
+    depth: np.array - Array of depths (m).
+    intensity_initial: float - Initial signal intensity (arbitrary units).
+    absorption_coefficient: float - Absorption coefficient (1/m).
+
+    Returns:
+    Signal intensity as a function of depth.
+    """
+    return intensity_initial * np.exp(-absorption_coefficient * depth)
+
+def total_signal(depth, temp_distribution, signal_intensity, transfer_function):
+    """
+    Calculate the total signal received by the radiothermometer.
+
+    depth: np.array - Array of depths (m).
+    temp_distribution: np.array - Temperature distribution in tissue.
+    signal_intensity: np.array - Signal intensity at each depth.
+    transfer_function: np.array - Weighting function of the radiothermometer.
+
+    Returns:
+    Total signal.
+    """
+    return np.trapz(signal_intensity * temp_distribution * transfer_function, depth)
+
+# Parameters
+depth = np.linspace(0, 0.05, 100)  # Depth in meters (0 to 5 cm)
+temp_surface = 310.15  # Surface temperature in Kelvin (37°C)
+thermal_conductivity = 0.5  # W/m*K
+metabolic_heat = 5000  # W/m^3
+density = 1000  # kg/m^3
+specific_heat = 3500  # J/kg*K
+absorption_coefficient = 20  # 1/m
+intensity_initial = 1.0  # Arbitrary units
+transfer_function = np.exp(-depth / 0.01)  # Example transfer function
+
+# Wavelength and frequency parameters
+frequency = 1e9  # Frequency in Hz (e.g., 1 GHz)
+wavelength = 3e8 / frequency  # Wavelength in meters
+
+# Calculate temperature distribution
+temp_distribution = heat_distribution(
+    depth, temp_surface, thermal_conductivity, metabolic_heat, density, specific_heat
+)
+
+# Calculate Rayleigh-Jeans radiation at each depth
+radiation_intensity = rayleigh_jeans_radiation(wavelength, temp_distribution)
+
+# Calculate signal attenuation
+signal_intensity = attenuation_signal(depth, radiation_intensity, absorption_coefficient)
+
+# Calculate total signal
+total_received_signal = total_signal(depth, temp_distribution, signal_intensity, transfer_function)
+
+# Output results
+print(f"Total received signal: {total_received_signal:.4f}")
+
+# Visualization
+plt.figure(figsize=(10, 8))
+plt.subplot(3, 1, 1)
+plt.plot(depth * 100, temp_distribution, label="Temperature Distribution (K)")
+plt.xlabel("Depth (cm)")
+plt.ylabel("Temperature (K)")
+plt.legend()
+plt.grid()
+
+plt.subplot(3, 1, 2)
+plt.plot(depth * 100, radiation_intensity, label="Radiation Intensity (W/m^3)", color="green")
+plt.xlabel("Depth (cm)")
+plt.ylabel("Radiation Intensity")
+plt.legend()
+plt.grid()
+
+plt.subplot(3, 1, 3)
+plt.plot(depth * 100, signal_intensity, label="Signal Intensity", color="orange")
+plt.xlabel("Depth (cm)")
+plt.ylabel("Intensity (a.u.)")
+plt.legend()
+plt.grid()
+
+plt.tight_layout()
+plt.show()
